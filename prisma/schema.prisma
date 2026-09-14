@@ -1,0 +1,126 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url      = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+model Question {
+  id               String   @id @default(cuid())
+  userId           String   @db.Uuid
+  question         String
+  response         String
+  model            String?
+  latencyMs        Int?
+  promptTokens     Int?
+  completionTokens Int?
+  reasoningTokens  Int?
+  totalTokens      Int?
+  shareToken       String?  @unique
+  isShared         Boolean  @default(false)
+  createdAt        DateTime @default(now())
+
+  @@index([userId, createdAt(sort: Desc)])
+  @@map("questions")
+}
+
+model ChatSession {
+  id         String        @id @default(cuid())
+  userId     String        @db.Uuid
+  title      String        @default("New conversation")
+  model      String?
+  shareToken String?       @unique
+  isShared   Boolean       @default(false)
+  createdAt  DateTime      @default(now())
+  updatedAt  DateTime      @updatedAt
+  messages   ChatMessage[]
+
+  @@index([userId, updatedAt(sort: Desc)])
+  @@map("chat_sessions")
+}
+
+model ChatMessage {
+  id          String      @id @default(cuid())
+  sessionId   String
+  role        String
+  contentJson String      @db.Text
+  model       String?
+  latencyMs   Int?
+  usageJson   String?     @db.Text
+  shareToken  String?     @unique
+  isShared    Boolean     @default(false)
+  createdAt   DateTime    @default(now())
+  session     ChatSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@index([sessionId, createdAt])
+  @@map("chat_messages")
+}
+
+model SharedImage {
+  id        String   @id @default(cuid())
+  userId    String   @db.Uuid
+  token     String   @unique
+  dataUrl   String   @db.Text
+  createdAt DateTime @default(now())
+
+  @@index([userId, createdAt(sort: Desc)])
+  @@map("shared_images")
+}
+
+model UserProfile {
+  id           String   @id @default(cuid())
+  userId       String   @unique @db.Uuid
+  username     String   @unique
+  avatarDataUrl String? @db.Text
+  profileToken String?  @unique
+  isPublic     Boolean  @default(false)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@map("user_profiles")
+}
+
+model CustomModel {
+  id        String   @id @default(cuid())
+  userId    String   @db.Uuid
+  modelId   String
+  name      String
+  provider  String
+  providerConnectionId String?
+  enabled   Boolean  @default(true)
+  createdAt DateTime @default(now())
+
+  @@unique([userId, modelId])
+  @@index([userId, createdAt(sort: Desc)])
+  @@map("custom_models")
+}
+
+model UserProviderKey {
+  id              String   @id @default(cuid())
+  userId          String   @db.Uuid
+  provider        String
+  apiKeyEncrypted String
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@unique([userId, provider])
+  @@map("user_provider_keys")
+}
+
+model UserProviderConnection {
+  id              String   @id @default(cuid())
+  userId          String   @db.Uuid
+  provider        String
+  label           String
+  baseUrl         String
+  apiKeyEncrypted String
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@unique([userId, provider, label])
+  @@index([userId, provider])
+  @@map("user_provider_connections")
+}

@@ -1,0 +1,11 @@
+import { notFound } from 'next/navigation'
+import { LockKeyhole, Sparkles } from 'lucide-react'
+import { prisma } from '@/lib/prisma'
+
+export default async function SharedChat({ params }: { params: Promise<{ token: string }> }) {
+  const { token } = await params
+  const session = await prisma.chatSession.findFirst({ where: { shareToken: token, isShared: true }, include: { messages: { orderBy: { createdAt: 'asc' } } } })
+  if (!session) notFound()
+  const owner = await prisma.userProfile.findUnique({ where: { userId: session.userId }, select: { username: true, avatarDataUrl: true } })
+  return <main className="shared-page"><header className="shared-header"><div className="shared-brand"><span><Sparkles size={15} /></span><strong>ASTRAL</strong></div><div className="shared-readonly"><LockKeyhole size={14} /> Read-only shared chat</div></header><section className="shared-hero"><p className="eyebrow">SHARED CONVERSATION</p><h1>{session.title}</h1><div className="shared-owner">{owner?.avatarDataUrl ? <img src={owner.avatarDataUrl} alt="" /> : <span>{owner?.username?.charAt(0).toUpperCase() ?? 'A'}</span>}<div><strong>{owner?.username ?? 'Astral user'}</strong><small>Shared an Astral conversation</small></div></div></section><article className="shared-thread">{session.messages.map((message) => { const content: unknown = JSON.parse(message.contentJson); const text = typeof content === 'string' ? content : Array.isArray(content) ? content.filter((part): part is { type: 'text'; text: string } => typeof part === 'object' && part !== null && 'type' in part && part.type === 'text').map((part) => part.text).join('\n') : ''; return <section className={`shared-message ${message.role}`} key={message.id}><div className="shared-message-icon">{message.role === 'assistant' ? <Sparkles size={14} /> : owner?.username?.charAt(0).toUpperCase() ?? 'A'}</div><div><div className="shared-message-label">{message.role === 'user' ? owner?.username ?? 'User' : 'Astral'}<small>{message.role === 'user' ? 'Question' : 'Answer'}</small></div><p>{text || 'Media attachment'}</p></div></section> })}</article><footer className="shared-footer">Shared on {session.createdAt.toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' })}</footer></main>
+}
